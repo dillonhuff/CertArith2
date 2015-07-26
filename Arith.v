@@ -164,7 +164,7 @@ Inductive stkProgEvalR : stackMachine -> stackProgram -> stackMachine -> Prop :=
 
 (* Equivalence of computational and relational definitions *)
 
-Theorem stkInstrEvalR_stackInstrEval_equiv :
+Theorem stkInstrEvalR_imp_stackInstrEval :
   forall (i : stkInstr) (sm1 sm2 : stackMachine),
     stkInstrEvalR sm1 i sm2 -> stkInstrEval i sm1 = Some sm2.
 Proof.
@@ -187,8 +187,43 @@ Proof.
   destruct s; unfold smRegMap; unfold smSetStkRegVal; unfold smStk;
   unfold smRegMap; inversion H5; rewrite -> H6; reflexivity.
 Qed.
-  
-  
+
+Lemma some_eq :
+  forall sm1 sm2 : stackMachine, Some sm1 = Some sm2 -> sm1 = sm2.
+Proof.                                   
+  intros; injection H; trivial.
+Qed.
+                                                                  
+Theorem stackInstrEval_imp_stkInstrEvalR :
+  forall (i : stkInstr) (sm1 sm2 : stackMachine),
+    stkInstrEval i sm1 = Some sm2 -> stkInstrEvalR sm1 i sm2.
+Proof.
+  intros. destruct i. simpl stkInstrEval in H. unfold smPush in H.
+  destruct sm1. unfold smRegMap in H. unfold smStk in H.
+  pose proof some_eq.
+  specialize (H0 (Build_stackMachine smRegMap0 ((smRegMap0 s) :: smStk0)) sm2).
+  apply H0 in H. rewrite <- H.
+  apply (StkInstrEvalR_push smRegMap0 smStk0 s (smRegMap0 s)); reflexivity.
+
+  simpl stkInstrEval in H.
+  destruct sm1. unfold smPop in H.
+  unfold smStk in H. destruct smStk0.
+
+  discriminate.
+
+  unfold smRegMap in H.
+  pose proof some_eq.
+  specialize (H0 (Build_stackMachine
+                    (fun x  =>
+                       if beq_stkReg x s then z else smRegMap0 x)
+                    smStk0)
+                 sm2).
+  apply H0 in H. rewrite <- H.
+  apply (StkInstrEvalR_pop smRegMap0 smStk0 s z).
+
+
+
+
 Theorem stkProgEvalR_stackProgEval_equiv :
   forall (p : stackProgram) (sm1 sm2 : stackMachine),
     stkProgEvalR sm1 p sm2 <-> stkProgEval p sm1 = Some sm2.
