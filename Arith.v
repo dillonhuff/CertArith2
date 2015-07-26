@@ -125,11 +125,11 @@ Fixpoint stkProgEval (p : stackProgram) (sm : stackMachine) : option stackMachin
 (* Stack program meaning as a relation  *)
 
 Inductive sBopEvalR : sBop -> Z -> Z -> Z -> Prop :=
-| sBopEvalR_smul :
+| SBopEvalR_smul :
     forall m n p, m * n = p -> sBopEvalR SMul n m p
-| sBopEvalR_sadd :
+| SBopEvalR_sadd :
     forall m n p, m + n = p -> sBopEvalR SAdd n m p
-| sBopEvalR_ssub :
+| SBopEvalR_ssub :
     forall m n p, m - n = p -> sBopEvalR SSub n m p.
 
 Inductive stkInstrEvalR : stackMachine -> stkInstr -> stackMachine -> Prop :=
@@ -221,8 +221,51 @@ Proof.
   apply H0 in H. rewrite <- H.
   apply (StkInstrEvalR_pop smRegMap0 smStk0 s z).
 
+  simpl stkInstrEval in H. unfold smBinop in H.
+  destruct s; destruct sm1; unfold smRegMap in H;
+  unfold smSetStkRegVal in H; unfold smRegMap in H;
+  unfold smStk in H; pose proof some_eq.
 
+  specialize (H0 (Build_stackMachine
+                    (fun x =>
+                       if beq_stkReg x s1 then smRegMap0 s1 + smRegMap0 s0 else smRegMap0 x)
+                    smStk0)
+                 sm2).
+  apply H0 in H. rewrite <- H.
+  apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SAdd (smRegMap0 s1 + smRegMap0 s0)).
+  apply (SBopEvalR_sadd (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 + smRegMap0 s0)).
+  reflexivity.
 
+  specialize (H0 (Build_stackMachine
+                    (fun x =>
+                       if beq_stkReg x s1 then smRegMap0 s1 - smRegMap0 s0 else smRegMap0 x)
+                    smStk0)
+                 sm2).
+  apply H0 in H. rewrite <- H.
+  apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SSub (smRegMap0 s1 - smRegMap0 s0)).
+  apply (SBopEvalR_ssub (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 - smRegMap0 s0)).
+  reflexivity.
+
+  specialize (H0 (Build_stackMachine
+                    (fun x =>
+                       if beq_stkReg x s1 then smRegMap0 s1 * smRegMap0 s0 else smRegMap0 x)
+                    smStk0)
+                 sm2).
+  apply H0 in H. rewrite <- H.
+  apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SMul (smRegMap0 s1 * smRegMap0 s0)).
+  apply (SBopEvalR_smul (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 * smRegMap0 s0)).
+  reflexivity.
+Qed.
+
+Theorem stackInstrEval_stkInstrEvalR_equiv :
+  forall (i : stkInstr) (sm1 sm2 : stackMachine),
+    stkInstrEvalR sm1 i sm2 <-> stkInstrEval i sm1 = Some sm2.
+Proof.
+  split; [pose proof stkInstrEvalR_imp_stackInstrEval;
+           specialize (H i sm1 sm2); apply H |
+          pose proof stackInstrEval_imp_stkInstrEvalR;
+            specialize (H i sm1 sm2); apply H].
+Qed.
 
 Theorem stkProgEvalR_stackProgEval_equiv :
   forall (p : stackProgram) (sm1 sm2 : stackMachine),
