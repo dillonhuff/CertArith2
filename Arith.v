@@ -271,11 +271,17 @@ Theorem stkProgEvalR_stackProgEval_equiv :
   forall (p : stackProgram) (sm1 sm2 : stackMachine),
     stkProgEvalR sm1 p sm2 <-> stkProgEval p sm1 = Some sm2.
 Proof.
-  intros. split.
+  intros; induction p.
 
-  inversion 1.
-  rewrite <- H2; simpl stkProgEval; reflexivity.
+  split.
 
+  unfold stkProgEval. inversion 1. reflexivity.
+
+  unfold stkProgEval. inversion 1. apply StkProgEvalR_empty.
+
+  split.
+
+  
   
 
 
