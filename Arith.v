@@ -160,7 +160,9 @@ Inductive stkInstrEvalR : stackMachine -> stkInstr -> stackMachine -> Prop :=
 Inductive stkProgEvalR : stackMachine -> stackProgram -> stackMachine -> Prop :=
 | StkProgEvalR_empty : forall sm1, stkProgEvalR sm1 nil sm1
 | StkProgEvalR_i :
-    forall sm1 sm2 i p, stkInstrEvalR sm1 i sm2 -> stkProgEvalR sm1 (i :: p) sm2.
+    forall sm1 sm1' sm2 i p, stkInstrEvalR sm1 i sm1' ->
+                             stkProgEvalR sm1' p sm2 ->
+                             stkProgEvalR sm1 (i :: p) sm2.
 
 (* Equivalence of computational and relational definitions *)
 
@@ -281,6 +283,8 @@ Proof.
 
   split.
 
+  destruct 1. simpl stkProgEval; reflexivity.
+  
   
   
 
