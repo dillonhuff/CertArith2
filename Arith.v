@@ -269,6 +269,48 @@ Proof.
             specialize (H i sm1 sm2); apply H].
 Qed.
 
+Lemma stkInstrEval_res :
+  forall i sm1,
+    stkInstrEval i sm1 = None \/
+    exists sm1', stkInstrEval i sm1 = Some sm1'.
+Proof.
+  intros. destruct (stkInstrEval i sm1).
+
+  right. eapply ex_intro. reflexivity.
+
+  left. reflexivity.
+Qed.
+
+Lemma stkProgEval_imp_stkInstrEval :
+  forall i p sm1 sm2,
+    stkProgEval (i :: p) sm1 = Some sm2 ->
+    exists sm1', stkInstrEval i sm1 = Some sm1'.
+Proof.
+  intros. unfold stkProgEval in H.
+  pose proof stkInstrEval_res.
+  specialize (H0 i sm1).
+  inversion H0.
+
+  (* None case *)
+  rewrite -> H1 in H.
+  discriminate.
+
+  (* Some sm1' case *)
+  inversion H1. clear H0.
+  eapply ex_intro. apply H2.
+Qed.
+
+Lemma stkProg_cons :
+  forall i p sm1 sm2 sm1',
+    stkProgEval (i :: p) sm1 = Some sm2 ->
+    stkInstrEval i sm1 = Some sm1' ->
+    stkProgEval p sm1' = Some sm2.
+Proof.
+  intros.
+  simpl stkProgEval in H.
+  rewrite -> H0 in H. assumption.
+Qed.
+
 Theorem stkProgEvalR_stackProgEval_equiv :
   forall (p : stackProgram) (sm1 sm2 : stackMachine),
     stkProgEvalR sm1 p sm2 <-> stkProgEval p sm1 = Some sm2.
@@ -292,97 +334,31 @@ Proof.
   destruct IHp.
   apply H13 in H11. rewrite -> H11. reflexivity.
   
-  inversion 1.
-  destruct (stkInstrEval a sm1) in H1.
+  (* stkProgEval (a :: p) sm1 = Some sm2 -> stkProgEvalR sm1 (a :: p) sm2 *)
+  intro.
+  pose proof stkProgEval_imp_stkInstrEval.
+  specialize (H0 a p sm1 sm2).
+  assert (H' := H).
+  apply H0 in H. inversion H.
+  apply (StkProgEvalR_i sm1 x sm2 a p).
   
+  (* stkInstrEvalR sm1 a x *)
+  pose proof stackInstrEval_imp_stkInstrEvalR.
+  specialize (H2 a sm1 x).
+  apply H2 in H1. assumption.
 
+  (* stkProgEvalR x p sm2 *)
+  pose proof stkProg_cons.
+  specialize (H2 a p sm1 sm2 x).
+  apply H2 in H'.
+  specialize (IHp x sm2).
+  inversion IHp. clear H3. apply H4 in H'.
+  assumption.
 
-(* Stack machine properties *)
-
-Theorem only_pop_is_dangerous :
-  forall (i : stkInstr) (sm : stackMachine),
-    stkInstrEval i sm = None -> isPop i.
-Proof.
-  intros. 
-  destruct i; [discriminate | constructor | discriminate].
+  (* stkInstrEval a sm1 = Some x *)
+  assumption.
 Qed.
-
-Theorem push_increments_size :
-  forall (i : stkInstr) (sm : stackMachine),
-    (exists r, i = Push r) ->
-    (exists sm', stkInstrEval i sm = Some sm' /\
-                 smStackSize sm'= (smStackSize sm) + 1)%nat.
-Proof.
-  intros.
   
-
-Theorem stackProgram_append_some :
-  forall (i : stkInstr) (p : stackProgram) (sm : stackMachine),
-    exists sm', stkInstrEval i sm = Some sm' ->
-                stkProgEval (i :: p) sm = stkProgEval p sm'.
-Proof.
-  intros. eapply ex_intro. 
-
-
-  destruct i.
-  
-  simpl. eapply ex_intro.
-  destruct 1. reflexivity.
-
-  destruct sm. destruct smStk0.
-
-
-  eapply ex_intro. simpl. destruct 1. reflexivity.
-
-  simpl stkProgEval. eapply ex_intro. destruct 1. reflexivity.
-  Grab Existential Variables.
-  apply Build_stackMachine. apply smRegMap0.
-  apply nil.
-Qed.
-
-Theorem stackProgram_append_none :
-  forall (i : stkInstr) (p : stackProgram) (sm : stackMachine),
-    stkProgEval (i :: nil) sm = None ->
-    stkProgEval (i :: p) sm = None.
-Proof.  
-  intros; simpl stkProgEval. unfold stkProgEval in H.
-  
-
-
-
-Theorem stackProgram_concat :
-  forall (l r : stackProgram) (sm : stackMachine),
-    exists sm', stkProgEval l sm = Some sm' ->
-                stkProgEval (l ++ r) sm = stkProgEval r sm'.
-Proof.
-  intros. induction l.
-
-  simpl; eapply ex_intro; reflexivity.
-
-  eapply ex_intro.
-  assert (stkProgEval (a :: nil) sm = None \/ exists sm3, stkProgEval (a :: nil) sm = Some sm3).
-
-  destruct (stkProgEval (a :: nil) sm).
-  right. eapply ex_intro; reflexivity.
-
-  left. reflexivity.
-
-  intros.
-  eapply ex_intro. destruct 1. destruct app.
-
-  eapply ex_intro; simpl; destruct 1; reflexivity.
-
-  eapply ex_intro; destruct 1.
-  inversion IHl as [m IHl0]. rewrite <- app_comm_cons.
-
-  pose proof (stackProgram_append a (l ++ r) sm).
-  destruct (stkProgEval (a :: nil) sm).
-  apply H with s.
-  inversion H as [sm2 Hm].
-  
-
-  
-
 (* Compilation of aExps to stackPrograms *)
 
 Definition aBopToSBop (b : aBop) : sBop :=
