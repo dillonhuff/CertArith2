@@ -292,7 +292,8 @@ Proof.
   destruct IHp.
   apply H13 in H11. rewrite -> H11. reflexivity.
   
-  
+  inversion 1.
+  destruct (stkInstrEval a sm1) in H1.
   
 
 
