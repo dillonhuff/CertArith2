@@ -358,7 +358,106 @@ Proof.
   (* stkInstrEval a sm1 = Some x *)
   assumption.
 Qed.
+
+(* Some additional properties of the stack machine *)
+
+Theorem sBopEvalR_result_unique :
+  forall b v0 v1 n1 n2,
+    sBopEvalR b v0 v1 n1 ->
+    sBopEvalR b v0 v1 n2 ->
+    n1 = n2.
+Proof.
+  intros; inversion H; inversion H0;
+  solve [rewrite -> H6 in H1; congruence | rewrite <- H7 in H2; discriminate].
+Qed.
+
+Theorem stkInstrEvalR_result_unique :
+  forall i sm1 sm2 sm3,
+    stkInstrEvalR sm1 i sm2 ->
+    stkInstrEvalR sm1 i sm3 ->
+    sm2 = sm3.
+Proof.
+  intros; try (inversion H; inversion H0; try congruence).
+
+  rewrite <- H4 in H1. inversion H1.  rewrite <- H10.
+  rewrite <- H5 in H2. 
+
+  assert (Pop r = Pop r0 -> r = r0).
+  injection 1. trivial.
+
+  apply H7 in H2.
+  rewrite <- H2. reflexivity.
+
+  rewrite <- H6 in H2. inversion H2.
+  rewrite <- H11.
+
+  rewrite <- H7 in H3.
+
+  assert (SBinop b r0 r1 = SBinop b0 r2 r3 -> b = b0 /\ r0 = r2 /\ r1 = r3).
+  injection 1. tauto.
+
+  apply H9 in H3.
+  inversion H3. inversion H13. clear H13. clear H3.
+  rewrite H15. rewrite <- H10 in H5. rewrite <- H12 in H5.
+  rewrite <- H14 in H5. rewrite <- H15 in H5.
+  pose proof sBopEvalR_result_unique.
+  specialize (H3 b (srv r0) (srv r1) n n0).
+  apply H3 in H1. rewrite H1. reflexivity.
+
+  assumption.
+Qed.
+
+Theorem stackProgram_nil :
+  forall sm1 sm2,
+    stkProgEvalR sm1 nil sm2 -> sm1 = sm2.
+Proof.
+  intros.
+  inversion H. congruence.
+Qed.
+
+Theorem stackProgram_uncons :
+  forall a p sm1 sm2,
+    stkProgEvalR sm1 (a :: p) sm2 ->
+    exists sm1', stkInstrEvalR sm1 a sm1'.
+Proof.
+  intros.
+  inversion H.
+  eapply ex_intro. apply H3.
+Qed.
+
+Theorem stackProgram_cons :
+  forall a p sm1 sm2 sm1',
+    stkProgEvalR sm1 (a :: p) sm2 ->
+    stkInstrEvalR sm1 a sm1' ->
+    stkProgEvalR sm1' p sm2.
+Proof.
+  intros. induction p.
+  inversion H.
+  pose proof stackProgram_nil.
+  specialize (H7 sm1'0 sm2).
+  apply H7 in H6. rewrite -> H6 in H4.
+  apply (StkProgEvalR_empty 
+
+  assert ((StkProgEvalR_i sm1 sm1' sm2 a nil) ).
+
+  apply (StkProgEvalR_i sm1' sm1'0 sm2 a p).
+
+
+Theorem stackProgram_concat :
+  forall p1 p2 sm1 sm2 sm1',
+    stkProgEvalR sm1 p1 sm1' ->
+    stkProgEvalR sm1' p2 sm2 ->
+    stkProgEvalR sm1 (p1 ++ p2) sm2.
+Proof.
+  intros.
+  induction p1.
   
+  (* p1 = nil *)
+  simpl. inversion H. congruence.
+
+  (* p = s :: p1 *)
+  assert (H' := H)
+
 (* Compilation of aExps to stackPrograms *)
 
 Definition aBopToSBop (b : aBop) : sBop :=
