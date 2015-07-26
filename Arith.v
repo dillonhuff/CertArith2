@@ -425,23 +425,39 @@ Proof.
   eapply ex_intro. apply H3.
 Qed.
 
+Theorem stackProgram_completion :
+  forall a p sm1 sm2,
+    stkProgEvalR sm1 (a :: p) sm2 ->
+    exists sm1', stkProgEvalR sm1' p sm2.
+Proof.
+  inversion 1. eapply ex_intro. apply H5.
+Qed.
+
 Theorem stackProgram_cons :
   forall a p sm1 sm2 sm1',
     stkProgEvalR sm1 (a :: p) sm2 ->
     stkInstrEvalR sm1 a sm1' ->
     stkProgEvalR sm1' p sm2.
 Proof.
-  intros. induction p.
-  inversion H.
-  pose proof stackProgram_nil.
-  specialize (H7 sm1'0 sm2).
-  apply H7 in H6. rewrite -> H6 in H4.
-  apply (StkProgEvalR_empty 
+  inversion 1.
+  intro.
+  pose proof stkInstrEvalR_result_unique.
+  specialize (H7 a sm1 sm1' sm1'0).
+  apply H7 in H6. rewrite -> H6. assumption.
 
-  assert ((StkProgEvalR_i sm1 sm1' sm2 a nil) ).
+  assumption.
+Qed.
 
-  apply (StkProgEvalR_i sm1' sm1'0 sm2 a p).
-
+Theorem stackProgram_cons_2 :
+  forall a p sm1 sm2 sm1',
+    stkInstrEvalR sm1 a sm1' ->
+    stkProgEvalR sm1' p sm2 ->
+    stkProgEvalR sm1 (a :: p) sm2.
+Proof.
+  intros.
+  apply (StkProgEvalR_i sm1 sm1' sm2 a p);
+  assumption.
+Qed.
 
 Theorem stackProgram_concat :
   forall p1 p2 sm1 sm2 sm1',
@@ -449,6 +465,29 @@ Theorem stackProgram_concat :
     stkProgEvalR sm1' p2 sm2 ->
     stkProgEvalR sm1 (p1 ++ p2) sm2.
 Proof.
+  induction p1.
+
+  inversion 1; intro.
+  simpl; assumption.
+
+  inversion 1.
+  intro.
+
+  rewrite <- app_comm_cons.
+
+  specialize (IHp1 p2 sm1'0 sm2 sm1').
+  apply IHp1 in H5.
+  pose proof stackProgram_cons_2.
+  specialize (H7 a (p1 ++ p2) sm1 sm2 sm1'0).
+  apply H7 in H3. assumption. assumption. assumption.
+Qed.
+
+  
+
+
+
+
+
   intros.
   induction p1.
   
