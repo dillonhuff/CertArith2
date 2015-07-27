@@ -585,11 +585,7 @@ Proof.
 
   pose proof push_sets_top.
   specialize (H0 sm2 (initStkRegMap m) nil (StkArg a)).
-  
-  pose proof stackProgram_uncons.
-  specialize (H0 (Push (StkArg a)) nil (initStackMachine m) sm2).
-  apply H0 in H.
+  unfold initStackMachine in H. apply H0 in H.
+  unfold initStkRegMap in H. unfold mkAArg in H.
+  assumption.
 
-  pose proof push_sets_top. unfold initStackMachine in H.
-  specialize (H0 sm2 (initStkRegMap m) nil (StkArg a)).
-  apply H0 in H.
