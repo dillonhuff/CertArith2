@@ -166,28 +166,43 @@ Inductive stkProgEvalR : stackMachine -> stackProgram -> stackMachine -> Prop :=
 
 (* Equivalence of computational and relational definitions *)
 
+Ltac unfold_sm :=
+  match goal with
+    | [|- context[smRegMap {| smRegMap := _; smStk := _ |}]] => unfold smRegMap
+    | [|- context[smStk {| smRegMap := _; smStk := _ |}]] => unfold smStk
+    | [H : context[smRegMap {| smRegMap := _; smStk := _ |}] |- _] =>
+      unfold smRegMap in H
+    | [H : context[smStk {| smRegMap := _; smStk := _ |}] |- _] =>
+      unfold smStk in H
+  end.
+
+Ltac runfold_sm := repeat unfold_sm.
+
+Theorem runfold_sm_test_1 :
+  forall srv stk,
+    smRegMap (Build_stackMachine srv stk) = smRegMap (Build_stackMachine srv stk).
+Proof.
+  intros; runfold_sm; reflexivity.
+Qed.
+
+Theorem runfold_sm_test_2 :
+  forall srv stk,
+    smRegMap (Build_stackMachine srv stk) = smRegMap (Build_stackMachine srv stk) ->
+    smRegMap (Build_stackMachine srv stk) = smRegMap (Build_stackMachine srv stk).
+Proof.
+  intros; runfold_sm; reflexivity.
+Qed.  
+
 Theorem stkInstrEvalR_imp_stackInstrEval :
   forall (i : stkInstr) (sm1 sm2 : stackMachine),
     stkInstrEvalR sm1 i sm2 -> stkInstrEval i sm1 = Some sm2.
 Proof.
-  intros; destruct i.
-
-  destruct H. simpl stkInstrEval. unfold smPush. unfold smRegMap.
-  rewrite -> H. unfold smStk. reflexivity.
-
-  simpl stkInstrEval. unfold smPop. unfold smStk. unfold smRegMap.
-  reflexivity.
-
-  inversion H; simpl stkInstrEval; unfold smSetStkRegVal; unfold smRegMap;
-  unfold smStk; rewrite -> H0; reflexivity.
-
-  inversion H; simpl stkInstrEval. unfold smPop. unfold smStk.
-  unfold smRegMap. reflexivity.
-
-  inversion H. simpl stkInstrEval. unfold smBinop.
-
-  destruct s; unfold smRegMap; unfold smSetStkRegVal; unfold smStk;
-  unfold smRegMap; inversion H5; rewrite -> H6; reflexivity.
+  intros; destruct i; destruct H; simpl stkInstrEval;
+  solve [unfold smPush; runfold_sm; rewrite -> H; reflexivity |
+         unfold smPop; runfold_sm; reflexivity |
+         inversion H; unfold smBinop;
+         destruct s; unfold smSetStkRegVal; runfold_sm; unfold smRegMap;
+         rewrite -> H0; reflexivity].
 Qed.
 
 Lemma some_eq :
@@ -195,13 +210,13 @@ Lemma some_eq :
 Proof.                                   
   intros; injection H; trivial.
 Qed.
-                                                                  
+
 Theorem stackInstrEval_imp_stkInstrEvalR :
   forall (i : stkInstr) (sm1 sm2 : stackMachine),
     stkInstrEval i sm1 = Some sm2 -> stkInstrEvalR sm1 i sm2.
 Proof.
   intros. destruct i. simpl stkInstrEval in H. unfold smPush in H.
-  destruct sm1. unfold smRegMap in H. unfold smStk in H.
+  destruct sm1. runfold_sm.
   pose proof some_eq.
   specialize (H0 (Build_stackMachine smRegMap0 ((smRegMap0 s) :: smStk0)) sm2).
   apply H0 in H. rewrite <- H.
@@ -209,11 +224,11 @@ Proof.
 
   simpl stkInstrEval in H.
   destruct sm1. unfold smPop in H.
-  unfold smStk in H. destruct smStk0.
+  runfold_sm. destruct smStk0.
 
   discriminate.
 
-  unfold smRegMap in H.
+  runfold_sm.
   pose proof some_eq.
   specialize (H0 (Build_stackMachine
                     (fun x  =>
@@ -224,38 +239,37 @@ Proof.
   apply (StkInstrEvalR_pop smRegMap0 smStk0 s z).
 
   simpl stkInstrEval in H. unfold smBinop in H.
-  destruct s; destruct sm1; unfold smRegMap in H;
-  unfold smSetStkRegVal in H; unfold smRegMap in H;
-  unfold smStk in H; pose proof some_eq.
+  destruct s; destruct sm1; 
+  unfold smSetStkRegVal in H; runfold_sm;
+  pose proof some_eq;
 
-  specialize (H0 (Build_stackMachine
+  [specialize (H0 (Build_stackMachine
                     (fun x =>
                        if beq_stkReg x s1 then smRegMap0 s1 + smRegMap0 s0 else smRegMap0 x)
                     smStk0)
-                 sm2).
-  apply H0 in H. rewrite <- H.
-  apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SAdd (smRegMap0 s1 + smRegMap0 s0)).
-  apply (SBopEvalR_sadd (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 + smRegMap0 s0)).
-  reflexivity.
+                 sm2);
+   apply H0 in H; rewrite <- H;
+   apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SAdd (smRegMap0 s1 + smRegMap0 s0));
+   apply (SBopEvalR_sadd (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 + smRegMap0 s0)) |
 
-  specialize (H0 (Build_stackMachine
+   specialize (H0 (Build_stackMachine
                     (fun x =>
                        if beq_stkReg x s1 then smRegMap0 s1 - smRegMap0 s0 else smRegMap0 x)
                     smStk0)
-                 sm2).
-  apply H0 in H. rewrite <- H.
-  apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SSub (smRegMap0 s1 - smRegMap0 s0)).
-  apply (SBopEvalR_ssub (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 - smRegMap0 s0)).
-  reflexivity.
+                 sm2);
 
-  specialize (H0 (Build_stackMachine
+   apply H0 in H; rewrite <- H;
+   apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SSub (smRegMap0 s1 - smRegMap0 s0));
+   apply (SBopEvalR_ssub (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 - smRegMap0 s0)) |
+
+   specialize (H0 (Build_stackMachine
                     (fun x =>
                        if beq_stkReg x s1 then smRegMap0 s1 * smRegMap0 s0 else smRegMap0 x)
                     smStk0)
-                 sm2).
-  apply H0 in H. rewrite <- H.
-  apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SMul (smRegMap0 s1 * smRegMap0 s0)).
-  apply (SBopEvalR_smul (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 * smRegMap0 s0)).
+                 sm2);
+   apply H0 in H; rewrite <- H;
+   apply (StkInstrEvalR_sBinop smRegMap0 smStk0 s0 s1 SMul (smRegMap0 s1 * smRegMap0 s0));
+   apply (SBopEvalR_smul (smRegMap0 s1) (smRegMap0 s0) (smRegMap0 s1 * smRegMap0 s0))];
   reflexivity.
 Qed.
 
@@ -398,6 +412,7 @@ Proof.
 
   apply H9 in H3.
   inversion H3. inversion H13. clear H13. clear H3.
+  
   rewrite H15. rewrite <- H10 in H5. rewrite <- H12 in H5.
   rewrite <- H14 in H5. rewrite <- H15 in H5.
   pose proof sBopEvalR_result_unique.
@@ -411,8 +426,7 @@ Theorem stackProgram_nil :
   forall sm1 sm2,
     stkProgEvalR sm1 nil sm2 -> sm1 = sm2.
 Proof.
-  intros.
-  inversion H. congruence.
+  intros; inversion H; congruence.
 Qed.
 
 Theorem stackProgram_uncons :
@@ -420,9 +434,7 @@ Theorem stackProgram_uncons :
     stkProgEvalR sm1 (a :: p) sm2 ->
     exists sm1', stkInstrEvalR sm1 a sm1'.
 Proof.
-  intros.
-  inversion H.
-  eapply ex_intro. apply H3.
+  intros; inversion H; eapply ex_intro; apply H3.
 Qed.
 
 Theorem stackProgram_completion :
@@ -430,7 +442,7 @@ Theorem stackProgram_completion :
     stkProgEvalR sm1 (a :: p) sm2 ->
     exists sm1', stkProgEvalR sm1' p sm2.
 Proof.
-  inversion 1. eapply ex_intro. apply H5.
+  inversion 1; eapply ex_intro; apply H5.
 Qed.
 
 Theorem stackProgram_cons :
@@ -439,11 +451,35 @@ Theorem stackProgram_cons :
     stkInstrEvalR sm1 a sm1' ->
     stkProgEvalR sm1' p sm2.
 Proof.
-  inversion 1.
-  intro.
+  inversion 1; intro.
   pose proof stkInstrEvalR_result_unique.
-  specialize (H7 a sm1 sm1' sm1'0).
-  apply H7 in H6. rewrite -> H6. assumption.
+  specialize (H7 a sm1 sm1' sm1'0);
+  apply H7 in H6. rewrite -> H6; assumption.
+
+  assumption.
+Qed.
+
+Theorem stackProgram_one_instr :
+  forall a sm1 sm2,
+    stkProgEvalR sm1 (a :: nil) sm2 ->
+    stkInstrEvalR sm1 a sm2.
+Proof.
+  intros.
+
+  pose proof stackProgram_uncons.
+  specialize (H0 a nil sm1 sm2).
+  assert (H' := H).
+  apply H0 in H. inversion H.
+
+  pose proof stackProgram_cons.
+  specialize (H2 a nil sm1 sm2 x).
+  apply H2 in H'.
+
+  pose proof stackProgram_nil.
+  specialize (H3 x sm2).
+  apply H3 in H'.
+
+  congruence.
 
   assumption.
 Qed.
@@ -454,9 +490,7 @@ Theorem stackProgram_cons_2 :
     stkProgEvalR sm1' p sm2 ->
     stkProgEvalR sm1 (a :: p) sm2.
 Proof.
-  intros.
-  apply (StkProgEvalR_i sm1 sm1' sm2 a p);
-  assumption.
+  intros; apply (StkProgEvalR_i sm1 sm1' sm2 a p); assumption.
 Qed.
 
 Theorem stackProgram_concat :
@@ -477,12 +511,22 @@ Proof.
 
   specialize (IHp1 p2 sm1'0 sm2 sm1').
   apply IHp1 in H5.
-  pose proof stackProgram_cons_2.
-  specialize (H7 a (p1 ++ p2) sm1 sm2 sm1'0).
-  apply H7 in H3. assumption. assumption. assumption.
+  pose proof stackProgram_cons_2;
+  specialize (H7 a (p1 ++ p2) sm1 sm2 sm1'0);
+  apply H7 in H3; assumption. assumption.
 Qed.
 
 (* Compilation of aExps to stackPrograms *)
+
+Definition initStkRegMap (m : aMap) : stkReg -> Z :=
+  fun x =>
+    match x with
+      | StkArg n => m (mkAArg n)
+      | StkTemp n => 0
+    end.
+
+Definition initStackMachine (a : aMap) : stackMachine :=
+  Build_stackMachine (initStkRegMap a) nil.
 
 Definition aBopToSBop (b : aBop) : sBop :=
   match b with
@@ -520,23 +564,32 @@ Proof.
   apply (IsTop srv stk v).
 Qed.
 
-
-
-(* Should this be <-> or is -> sufficient? *)
-
-(* NOTE: I need to change this to specify that *)
-(* the argument map for the original program   *)
-(* and the argument map for the stack program  *)
-(* must be the same                            *)
 Theorem aExpToStackProgram_correct :
-  forall e m sm1 sm2,
-    stkProgEvalR sm1 (aExpToStackProgram e) sm2 -> isTop sm2 (aExpEval e m).
+  forall e m sm2,
+    stkProgEvalR (initStackMachine m) (aExpToStackProgram e) sm2 ->
+    isTop sm2 (aExpEval e m).
 Proof.
   intros.
   induction e.
   simpl aExpToStackProgram in H.
   simpl aExpEval. unfold aArgName in H.
 
+  pose proof push_sets_top.
+  specialize (H0 sm2 (smRegMap (initStackMachine m)) nil (StkArg a)).
 
+  pose proof stackProgram_one_instr.
+  specialize (H1 (Push (StkArg a)) (initStackMachine m) sm2).
+  apply H1 in H.
+
+  clear H1. clear H0.
+
+  pose proof push_sets_top.
+  specialize (H0 sm2 (initStkRegMap m) nil (StkArg a)).
   
-  
+  pose proof stackProgram_uncons.
+  specialize (H0 (Push (StkArg a)) nil (initStackMachine m) sm2).
+  apply H0 in H.
+
+  pose proof push_sets_top. unfold initStackMachine in H.
+  specialize (H0 sm2 (initStkRegMap m) nil (StkArg a)).
+  apply H0 in H.
