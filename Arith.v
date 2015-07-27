@@ -482,21 +482,6 @@ Proof.
   apply H7 in H3. assumption. assumption. assumption.
 Qed.
 
-  
-
-
-
-
-
-  intros.
-  induction p1.
-  
-  (* p1 = nil *)
-  simpl. inversion H. congruence.
-
-  (* p = s :: p1 *)
-  assert (H' := H)
-
 (* Compilation of aExps to stackPrograms *)
 
 Definition aBopToSBop (b : aBop) : sBop :=
@@ -520,15 +505,38 @@ Eval compute in aExpToStackProgram (ArgExp (mkAArg 23%nat)).
 Eval compute in
     aExpToStackProgram (ABinop AAdd (ArgExp (mkAArg 23%nat)) (ArgExp (mkAArg 76%nat))).
 
-(* Compiler properties *)
+(* Proof of compiler correctness *)
 
-Theorem aExpToStackProgram_safe :
-  forall (a : aExp) (sm : stackMachine),
-    exists sm', stkProgEval (aExpToStackProgram a) sm = Some sm'.
+Inductive isTop : stackMachine -> Z -> Prop :=
+| IsTop : forall srv stk v, isTop (Build_stackMachine srv (v :: stk)) v.
+
+Theorem push_sets_top :
+  forall sm2 srv stk r,
+    stkInstrEvalR (Build_stackMachine srv stk) (Push r) sm2 ->
+    isTop sm2 (srv r).
 Proof.
-  intros; induction a.
+  intros;
+  inversion H; rewrite <- H1 in H; rewrite -> H4;
+  apply (IsTop srv stk v).
+Qed.
 
-  simpl. unfold aArgName. unfold smPush. eapply ex_intro.
-  reflexivity.
 
+
+(* Should this be <-> or is -> sufficient? *)
+
+(* NOTE: I need to change this to specify that *)
+(* the argument map for the original program   *)
+(* and the argument map for the stack program  *)
+(* must be the same                            *)
+Theorem aExpToStackProgram_correct :
+  forall e m sm1 sm2,
+    stkProgEvalR sm1 (aExpToStackProgram e) sm2 -> isTop sm2 (aExpEval e m).
+Proof.
+  intros.
+  induction e.
+  simpl aExpToStackProgram in H.
+  simpl aExpEval. unfold aArgName in H.
+
+
+  
   
